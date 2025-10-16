@@ -1,3 +1,16 @@
+import os
+from dotenv import load_dotenv
+
+# Load .env file locally (ignored in production)
+load_dotenv()
+
+# Get API key from environment variable
+API_KEY = os.environ.get("OPENWEATHER_API_KEY")
+
+# Optional: check if the API key exists
+if not API_KEY:
+    raise RuntimeError("Please set OPENWEATHER_API_KEY environment variable")
+
 from flask import Flask, render_template, request, jsonify
 import requests
 from datetime import datetime, timedelta
@@ -5,7 +18,6 @@ from difflib import get_close_matches
 
 app = Flask(__name__)
 
-API_KEY = "1a45e0667b1074687306201df0cf198f"
 BASE_URL = "http://api.openweathermap.org/data/2.5/weather"
 ONECALL_URL = "https://api.openweathermap.org/data/2.5/onecall/timemachine"
 
