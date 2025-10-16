@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sky Vision Tool</title>
+<style>
+  :root {
+    --purple1: #3a0ca3;
+    --purple2: #7209b7;
+    --purple3: #b5179e;
+  }
+
+  body {
+    font-family: "Poppins", sans-serif;
+    background: linear-gradient(135deg, var(--purple1), var(--purple2), var(--purple3));
+    color: white;
+    min-height: 100vh;
+    margin: 0;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    transition: background 1s ease;
+  }
+
+  h1 {
+    margin-top: 40px;
+    font-size: 2.5rem;
+    text-shadow: 0 0 10px #fff4;
+  }
+
+  .container {
+    margin: 20px auto;
+    width: 90%;
+    max-width: 450px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 25px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+    transition: transform 0.3s ease;
+    z-index: 2;
+    position: relative;
+  }
+
+  .container:hover { transform: scale(1.02); }
+
+  input {
+    width: 75%;
+    padding: 10px;
+    border: none;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 1rem;
+    outline: none;
+  }
+
+  button {
+    background-color: #b5179e;
+    border: none;
+    border-radius: 10px;
+    color: white;
+    padding: 10px 20px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  button:hover { background-color: #f72585; box-shadow: 0 0 10px #f72585; }
+
+  .weather-card {
+    margin-top: 20px;
+    display: none;
+    animation: fadeIn 0.8s ease;
+  }
+
+  @keyframes fadeIn { from{opacity:0;transform:translateY(20px);} to{opacity:1;transform:translateY(0);} }
+
+  .card {
+    margin: 10px auto;
+    padding: 15px;
+    border-radius: 15px;
+    background: rgba(255,255,255,0.15);
+  }
+
+  .error { color: #ffd6ff; font-weight: bold; margin-top: 15px; }
+
+  footer {
+    margin-top: auto;
+    padding: 20px;
+    font-size: 1rem;
+    background: rgba(255,255,255,0.1);
+  }
+
+  .suggestion {
+    background: #9d4edd;
+    padding: 8px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-block;
+    margin-top: 8px;
+  }
+  .suggestion:hover { background: #c77dff; }
+
+  /* Weather Effects Overlay */
+  .effect {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 1;
+  }
+
+  .raindrop, .snowflake, .cloud {
+    position: absolute;
+    animation-timing-function: linear;
+    opacity: 0.7;
+  }
+
+  .raindrop {
+    width: 2px;
+    height: 15px;
+    background: rgba(173, 216, 230, 0.7);
+    animation-name: rainFall;
+    animation-duration: 1s;
+    animation-iteration-count: infinite;
+  }
+
+  @keyframes rainFall {
+    from { transform: translateY(-10px); }
+    to { transform: translateY(100vh); }
+  }
+
+  .snowflake {
+    color: white;
+    font-size: 1.2em;
+    animation-name: snowFall;
+    animation-duration: 4s;
+    animation-iteration-count: infinite;
+  }
+
+  @keyframes snowFall {
+    from { transform: translateY(-10px); }
+    to { transform: translateY(100vh); opacity: 0.3; }
+  }
+
+  .cloud {
+    background: rgba(255,255,255,0.3);
+    border-radius: 50%;
+    width: 100px;
+    height: 60px;
+    animation: cloudMove 20s linear infinite;
+  }
+
+  @keyframes cloudMove {
+    0% { left: -150px; top: 80px; }
+    100% { left: 110%; top: 80px; }
+  }
+</style>
+</head>
+<body>
+  <h1>🌦️ Smart Sky Vision Tool</h1>
+
+  <div class="container">
+    <input id="cityInput" type="text" placeholder="Enter city name (e.g. Mumbai)">
+    <br><br>
+    <button onclick="getWeather()">Get Weather</button>
+
+    <div id="errorMsg" class="error"></div>
+    <div id="suggestionBox"></div>
+
+    <div class="weather-card" id="weatherCard">
+      <div class="card" id="currentWeather"></div>
+      <div class="card" id="yesterdayWeather"></div>
+      <div class="card" id="tomorrowWeather"></div>
+    </div>
+  </div>
+
+  <footer>💜 Developed by Ravi Shankar</footer>
+
+  <div id="effectsContainer" class="effect"></div>
+
+<script>
+async function getWeather(cityName = null) {
+  const city = cityName || document.getElementById("cityInput").value.trim();
+  const errorMsg = document.getElementById("errorMsg");
+  const suggestionBox = document.getElementById("suggestionBox");
+  const card = document.getElementById("weatherCard");
+  const effectsContainer = document.getElementById("effectsContainer");
+
+  errorMsg.textContent = "";
+  suggestionBox.innerHTML = "";
+  effectsContainer.innerHTML = ""; // clear old effects
+
+  if (!city) {
+    errorMsg.textContent = "Please enter a city name!";
+    return;
+  }
+
+  try {
+    const response = await fetch("/get_weather", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({city})
+    });
+    const data = await response.json();
+
+    if (data.error) {
+      errorMsg.textContent = data.error;
+      card.style.display = "none";
+      return;
+    }
+
+    if (data.suggestion) {
+      suggestionBox.innerHTML = `Did you mean 
+        <span class='suggestion' onclick="getWeather('${data.suggestion}')">
+          ${data.suggestion}
+        </span>?`;
+      card.style.display = "none";
+      return;
+    }
+
+    // Keep purple background; add overlay effects instead
+    addWeatherEffect(data.current.description.toLowerCase());
+
+    document.getElementById("currentWeather").innerHTML = `
+      <h2>${data.current.city}, ${data.current.country}</h2>
+      <p>🌡 Temp: ${data.current.temperature}°C (Feels like ${data.current.feels_like}°C)</p>
+      <p>☁️ ${data.current.description}</p>
+      <p>💧 Humidity: ${data.current.humidity}%</p>
+      <p>💨 Wind: ${data.current.wind_speed} m/s</p>
+      <p>🌅 Sunrise: ${data.current.sunrise} | 🌇 Sunset: ${data.current.sunset}</p>`;
+
+    document.getElementById("yesterdayWeather").innerHTML = data.yesterday ?
+      `<h3>📅 Yesterday</h3><p>${data.yesterday.desc}</p><p>🌡 ${data.yesterday.temp}°C</p>` :
+      `<h3>📅 Yesterday</h3><p>Data not available</p>`;
+
+    document.getElementById("tomorrowWeather").innerHTML = `
+      <h3>📅 Tomorrow</h3>
+      <p>${data.tomorrow.desc}</p>
+      <p>🌡 ${data.tomorrow.temp}°C</p>`;
+
+    card.style.display = "block";
+
+    // Enable scrolling when content expands
+    document.body.style.overflowY = "auto";
+
+  } catch (err) {
+    errorMsg.textContent = "⚠️ Something went wrong. Please try again.";
+  }
+}
+
+// Add effects dynamically on top of background
+function addWeatherEffect(desc) {
+  const container = document.getElementById("effectsContainer");
+  container.innerHTML = "";
+
+  if (desc.includes("rain")) {
+    for (let i = 0; i < 40; i++) {
+      const drop = document.createElement("div");
+      drop.className = "raindrop";
+      drop.style.left = Math.random() * 100 + "vw";
+      drop.style.animationDuration = (0.8 + Math.random() * 0.5) + "s";
+      container.appendChild(drop);
+    }
+  } else if (desc.includes("snow")) {
+    for (let i = 0; i < 30; i++) {
+      const snow = document.createElement("div");
+      snow.className = "snowflake";
+      snow.textContent = "❄";
+      snow.style.left = Math.random() * 100 + "vw";
+      snow.style.animationDuration = (3 + Math.random() * 2) + "s";
+      container.appendChild(snow);
+    }
+  } else if (desc.includes("cloud")) {
+    for (let i = 0; i < 3; i++) {
+      const cloud = document.createElement("div");
+      cloud.className = "cloud";
+      cloud.style.top = (50 + i * 40) + "px";
+      cloud.style.animationDelay = i * 5 + "s";
+      container.appendChild(cloud);
+    }
+  } 
+}
+</script>
+</body>
+</html>
